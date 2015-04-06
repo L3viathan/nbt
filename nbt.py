@@ -15,13 +15,8 @@ class Tag(object):
         return self.type + ("<" + self.ltype + ">" if self.ltype is not None else "") + '("' + self.name + '"): ' + str(self.payload)
     __repr__ = __str__
     def __getitem__(self, item):
-        if self.type == "TAG_List":
+        if self.type in ("TAG_List", "TAG_Compound"):
             return self.payload[item]
-        elif self.type == "TAG_Compound":
-            for element in self.payload:
-                if element.name == item:
-                    return element
-            raise KeyError(item)
         else:
             raise TypeError("'" + self.type + "' object is not subscriptable")
 
@@ -60,11 +55,11 @@ def getList(file_object, tag_type, tag_size):
     return [getTag(file_object, tag_type) for _ in range(tag_size)]
 
 def getCompound(file_object):
-    cmpnd = []
+    cmpnd = {}
     while True:
         try:
             tag = getTag(file_object)
-            cmpnd.append(tag)
+            cmpnd[tag.name] = tag
         except EndTag:
             break
     return cmpnd
@@ -76,8 +71,8 @@ def writeList(file_object, lst, ltype):
         writeTag(file_object, element, ltype)
 
 def writeCompound(file_object, obj):
-    for element in obj:
-        writeTag(file_object, element)
+    for key in obj:
+        writeTag(file_object, obj[key])
     # write TAG_End
     file_object.write(struct.pack('b',0))
 
