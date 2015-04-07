@@ -15,12 +15,11 @@ class Tag(object):
         return self.type + ("<" + self.ltype + ">" if self.ltype is not None else "") + '("' + self.name + '"): ' + str(self.payload)
     __repr__ = __str__
     def __getitem__(self, item):
-        if self.type in ("TAG_List", "TAG_Compound"):
+        if self.type in ("TAG_List", "TAG_Compound", "TAG_Byte_Array", "TAG_Int_Array"):
             return self.payload[item]
         else:
             raise TypeError("'" + self.type + "' object is not subscriptable")
     def __setitem__(self, item, value):
-        print("nbt.__setitem__ called")
         if isinstance(value, Tag):
             print("isinstance of Tag")
             self.payload[item] = value
@@ -52,7 +51,7 @@ class Tag(object):
             if isinstance(value, dict) and all(isinstance(x,nbt.Tag) for x in value):
                 self.payload[item].payload = value
         else:
-            raise TypeError("Can't assign type " + type(value) + " value to wait what?")
+            raise RuntimeError("Tag type " + self.payload[item].type + " is unknown")
 
 numToType = {
         0: "TAG_End",
@@ -85,7 +84,6 @@ typeToNum = {
         }
 
 def getList(file_object, tag_type, tag_size):
-    # return [(lambda x: (x[0], x[2]))(getTag(file_object, tag_type)) for _ in range(tag_size)]
     return [getTag(file_object, tag_type) for _ in range(tag_size)]
 
 def getCompound(file_object):
@@ -97,6 +95,50 @@ def getCompound(file_object):
         except EndTag:
             break
     return cmpnd
+
+def getTag(file_object, tag_type=None):
+    ltype=None
+    if tag_type is None:
+        raw_type = struct.unpack('b', file_object.read(1))[0]
+        tag_type = numToType[raw_type]
+        if tag_type == "TAG_End":
+            raise EndTag
+        length = struct.unpack('>h', file_object.read(2))[0]
+        name = file_object.read(length).decode("utf-8")
+    else:
+        name = ""
+        pass
+    if tag_type == "TAG_Byte":
+        payload = struct.unpack('b', file_object.read(1))[0]
+    elif tag_type == "TAG_Short":
+        payload = struct.unpack('>h', file_object.read(2))[0]
+    elif tag_type == "TAG_Int":
+        payload = struct.unpack('>i', file_object.read(4))[0]
+    elif tag_type == "TAG_Long":
+        payload = struct.unpack('>q', file_object.read(8))[0]
+    elif tag_type == "TAG_Float":
+        payload = struct.unpack('>f', file_object.read(4))[0]
+    elif tag_type == "TAG_Double":
+        payload = struct.unpack('>d', file_object.read(8))[0]
+    elif tag_type == "TAG_Byte_Array":
+        payload_size = struct.unpack('>i', file_object.read(4))[0]
+        payload = [struct.unpack('b', file_object.read(1))[0] for _ in range(payload_size)]
+    elif tag_type == "TAG_String":
+        payload_size = struct.unpack('>h', file_object.read(2))[0]
+        payload = file_object.read(payload_size).decode("utf-8")
+    elif tag_type == "TAG_List":
+        payload_type = numToType[struct.unpack('b', file_object.read(1))[0]]
+        payload_size = struct.unpack('>i', file_object.read(4))[0]
+        payload = getList(file_object, payload_type, payload_size)
+        ltype = payload_type
+    elif tag_type == "TAG_Compound":
+        payload = getCompound(file_object)
+    elif tag_type == "TAG_Int_Array":
+        payload_size = struct.unpack('>i', file_object.read(4))[0]
+        payload = [struct.unpack('>i', file_object.read(4))[0] for _ in range(payload_size)]
+    else:
+        payload = "ERROR, tag_type = " + tag_type
+    return Tag(tag_type, name, payload, ltype)
 
 def writeList(file_object, lst, ltype):
     file_object.write(struct.pack('b',typeToNum[ltype]))
@@ -151,49 +193,6 @@ def writeTag(file_object, data, tag_type=None):
         for element in payload:
             file_object.write(struct.pack('>i',payload))
 
-def getTag(file_object, tag_type=None):
-    ltype=None
-    if tag_type is None:
-        raw_type = struct.unpack('b', file_object.read(1))[0]
-        tag_type = numToType[raw_type]
-        if tag_type == "TAG_End":
-            raise EndTag
-        length = struct.unpack('>h', file_object.read(2))[0]
-        name = file_object.read(length).decode("utf-8")
-    else:
-        name = ""
-        pass
-    if tag_type == "TAG_Byte":
-        payload = struct.unpack('b', file_object.read(1))[0]
-    elif tag_type == "TAG_Short":
-        payload = struct.unpack('>h', file_object.read(2))[0]
-    elif tag_type == "TAG_Int":
-        payload = struct.unpack('>i', file_object.read(4))[0]
-    elif tag_type == "TAG_Long":
-        payload = struct.unpack('>q', file_object.read(8))[0]
-    elif tag_type == "TAG_Float":
-        payload = struct.unpack('>f', file_object.read(4))[0]
-    elif tag_type == "TAG_Double":
-        payload = struct.unpack('>d', file_object.read(8))[0]
-    elif tag_type == "TAG_Byte_Array":
-        payload_size = struct.unpack('>i', file_object.read(4))[0]
-        payload = [struct.unpack('b', file_object.read(1))[0] for _ in range(payload_size)]
-    elif tag_type == "TAG_String":
-        payload_size = struct.unpack('>h', file_object.read(2))[0]
-        payload = file_object.read(payload_size).decode("utf-8")
-    elif tag_type == "TAG_List":
-        payload_type = numToType[struct.unpack('b', file_object.read(1))[0]]
-        payload_size = struct.unpack('>i', file_object.read(4))[0]
-        payload = getList(file_object, payload_type, payload_size)
-        ltype = payload_type
-    elif tag_type == "TAG_Compound":
-        payload = getCompound(file_object)
-    elif tag_type == "TAG_Int_Array":
-        payload_size = struct.unpack('>i', file_object.read(4))[0]
-        payload = [struct.unpack('>i', file_object.read(4))[0] for _ in range(payload_size)]
-    else:
-        payload = "ERROR, tag_type = " + tag_type
-    return Tag(tag_type, name, payload, ltype)
 
 def read(filename):
     with gzip.open(filename, "rb") as f:
