@@ -26,5 +26,7 @@ Alternatively, you can use the lazynbt approach, inspired by [lazyjson](https://
     >>> f["Data"]["Player"]["Score"] = 300
     >>>
 
+As you might notice, when the user assigns a new value for some tag, it is not assigned directly, but transformed into a matching tag. Since in these examples the tag type was `TAG_Int`, and the user provided a Python integer, that was no problem. nbt.py will complain if you give it a wrong type, e.g. a non-integer float for a `TAG_Int` or something entirely different. Alternatively, you may also directly assign `nbt.Tag` values.
+
 ## License
 WTFPL, but attribution would be nice, and if you use it, please tell me.
