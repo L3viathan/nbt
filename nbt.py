@@ -19,6 +19,40 @@ class Tag(object):
             return self.payload[item]
         else:
             raise TypeError("'" + self.type + "' object is not subscriptable")
+    def __setitem__(self, item, value):
+        print("nbt.__setitem__ called")
+        if isinstance(value, Tag):
+            print("isinstance of Tag")
+            self.payload[item] = value
+        elif self.payload[item].type in ("TAG_Float", "TAG_Double"):
+            if isinstance(value, int) or isinstance(value, float):
+                self.payload[item].payload = float(value)
+            else:
+                raise TypeError("Can't assign type " + type(value) + " value to numeric tag")
+        elif self.payload[item].type in ("TAG_Byte", "TAG_Short", "TAG_Int", "TAG_Long"):
+            if isinstance(value, int) or isinstance(value, float) and value.is_integer():
+                self.payload[item].payload = int(value)
+        elif self.payload[item].type in ("TAG_Byte_Array", "TAG_Int_Array"):
+            if isinstance(value, list):
+                if all(isinstance(x, float) and x.is_integer or isinstance(x,int) for x in value):
+                    self.payload[item].payload = list(map(int,value))
+                else:
+                    raise TypeError("Arrays must contain only integers")
+            else:
+                raise TypeError("Can't assign type " + type(value) + "to array tag")
+        elif self.payload[item].type == "TAG_String":
+            if isinstance(value, str):
+                self.payload[item].payload = value
+            else:
+                raise TypeError("Can't assign type " + type(value) + " value to TAG_String")
+        elif self.payload[item].type == "TAG_List":
+            if isinstance(value, list) and all(isinstance(x,nbt.Tag) and x.name == "" and x.type == self.payload[item].ltype for x in value):
+                self.payload[item].payload = value
+        elif self.payload[item].type == "TAG_Compound":
+            if isinstance(value, dict) and all(isinstance(x,nbt.Tag) for x in value):
+                self.payload[item].payload = value
+        else:
+            raise TypeError("Can't assign type " + type(value) + " value to wait what?")
 
 numToType = {
         0: "TAG_End",
