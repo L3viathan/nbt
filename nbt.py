@@ -52,6 +52,28 @@ class Tag(object):
                 self.payload[item].payload = value
         else:
             raise RuntimeError("Tag type " + self.payload[item].type + " is unknown")
+    def prettyprint(self, level=0, print_comma=False):
+        print("\t"*level, end="")
+        if self.name != "":
+            print('"' + self.name + '": ', end="")
+        # if self.type in ("TAG_Compound","TAG_List","TAG_Byte_Array","TAG_Int_Array"):
+        #     print("\n",end="")
+        if self.type == "TAG_List":
+            print("[")
+            last_item = len(self.payload) -1
+            for (idx,element) in enumerate(self.payload):
+                element.prettyprint(level+1, idx!=last_item)
+            print("\t"*level + "]" + ","*print_comma)
+        elif self.type == "TAG_Compound":
+            print("{")
+            last_item = len(self.payload) -1
+            for (idx,key) in enumerate(self.payload):
+                self.payload[key].prettyprint(level+1, idx!=last_item)
+            print("\t"*level + "}" + ","*print_comma)
+        elif self.type == "TAG_String":
+            print('"' + self.payload + '"' + ","*print_comma)
+        else:
+            print(str(self.payload) + ","*print_comma)
 
 numToType = {
         0: "TAG_End",
@@ -180,7 +202,7 @@ def writeTag(file_object, data, tag_type=None):
     elif tag_type == "TAG_Byte_Array":
         file_object.write(struct.pack('>i',len(payload)))
         for element in payload:
-            file_object.write(struct.pack('b',payload))
+            file_object.write(struct.pack('b', element))
     elif tag_type == "TAG_String":
         file_object.write(struct.pack('>H',len(payload)))
         file_object.write(payload.encode("utf-8"))
@@ -191,8 +213,7 @@ def writeTag(file_object, data, tag_type=None):
     elif tag_type == "TAG_Int_Array":
         file_object.write(struct.pack('>i',len(payload)))
         for element in payload:
-            file_object.write(struct.pack('>i',payload))
-
+            file_object.write(struct.pack('>i', element))
 
 def read(filename):
     with gzip.open(filename, "rb") as f:
