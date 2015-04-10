@@ -15,12 +15,13 @@ class File(object):
     def _write(self):
         nbt.write(self.filename, self.cache)
     def __repr__(self):
-        # return "lazynbt.File('" + self.filename + "', " + str(self.pointer) + ")"
+        return "lazynbt.File('" + self.filename + "', " + str(self.pointer) + ")"
+    def prettyprint(self):
         self._read()
         ret = self.cache
         for thing in self.pointer:
             ret = ret[thing]
-        return ret.prettyprint()
+        ret.prettyprint()
     def __str__(self):
         self._read()
         ret = self.cache
